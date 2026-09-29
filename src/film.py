@@ -496,7 +496,7 @@ def encode(frames_dir):
     import imageio_ffmpeg
     ff = imageio_ffmpeg.get_ffmpeg_exe()
     mp4 = os.path.join(OUT, 'next30.mp4')
-    audio = os.path.join(OUT, 'music.wav')
+    audio = os.path.join(OUT, 'soundtrack.wav')
     cmd = [ff, '-y', '-framerate', str(FPS), '-i', os.path.join(frames_dir, 'f_%04d.png')]
     if os.path.exists(audio):
         cmd += ['-i', audio]
