@@ -44,3 +44,9 @@ python film.py --all --w 1280 --h 720 --spp 8       # every frame -> out/next30.
 ```
 
 A full 720p render takes about 8 minutes on 4 CPU cores.
+
+---
+
+## Also in this repo: ASCII Camera
+
+[`ascii-camera/`](ascii-camera/) is an interactive camera playground. It draws you live in text characters, and hand gestures (wave, fist→open, thumbs up, peace, heart hands) set off typographic effects. It's static HTML/JS with no build step. See [its README](ascii-camera/README.md).
