@@ -1,0 +1,517 @@
+<title>Menu Motion Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..500,0..100,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Layout: one fixed 700×450 study frame, menu stacked in the right half, tuning panel below the frame. */
+  /* Single light look by choice: the brief fixes warm white + charcoal + lime. */
+  :root {
+    --paper: #F7F5F0;      /* warm white ground */
+    --ink: #333333;        /* primary text */
+    --mute: #A19D93;       /* tiny labels */
+    --hair: #E4E0D6;       /* frame edge, panel rules */
+    --lime: #DFFF9A;       /* accent, only during interaction */
+    --lime-edge: rgba(51, 51, 51, .42);
+    --serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  html, body { background: var(--paper); color: var(--ink); }
+  body {
+    font-family: var(--mono);
+    padding-inline: 16px;
+    padding-block: 40px 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+
+  .stage { position: relative; width: 700px; height: 450px; max-width: 100%; }
+  .frame {
+    position: absolute; left: 0; top: 0;
+    width: 700px; height: 450px;
+    transform-origin: 0 0;
+    background: var(--paper);
+    outline: 1px solid var(--hair);
+    overflow: hidden;
+    touch-action: none;
+  }
+  .trail { position: absolute; inset: 0; width: 700px; height: 450px; pointer-events: none; z-index: 2; }
+
+  .menu {
+    position: absolute; left: 396px; top: 0; bottom: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 4px;
+  }
+  .menu-label {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .18em; color: var(--mute);
+    margin: 0 0 14px 2px;
+  }
+  .link {
+    position: relative;
+    display: inline-block;
+    align-self: flex-start;
+    font-family: var(--serif);
+    font-size: 46px; line-height: 1.08;
+    font-weight: 360;
+    font-variation-settings: "opsz" 96, "SOFT" 70, "WONK" 1;
+    font-kerning: none;
+    letter-spacing: -.012em;
+    color: var(--ink);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .link:focus { outline: none; }
+  .link:focus-visible { outline: 1px dotted var(--ink); outline-offset: 5px; }
+
+  .ch { display: inline-block; position: relative; white-space: pre; }
+  .ch.g { color: transparent; }
+  .ch.g::after {
+    content: attr(data-g);
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: .56em; font-weight: 600;
+    color: var(--lime);
+    transform: translateX(var(--jx, 0px));
+  }
+  .frame[data-accent="edge"] .ch.g::after { -webkit-text-stroke: .7px var(--lime-edge); }
+  .frame[data-accent="chip"] .ch.g::after {
+    inset: 20% 4% 12%;
+    background: var(--lime); color: var(--ink);
+    font-size: .46em; border-radius: 1px;
+  }
+
+  .caption {
+    position: absolute; left: 28px; bottom: 24px;
+    font-size: 10px; letter-spacing: .06em; color: var(--mute);
+  }
+
+  /* Tuning panel, outside the frame so the frame stays clean */
+  .panel { width: 700px; max-width: 100%; font-size: 11px; color: var(--ink); }
+  .panel summary {
+    cursor: pointer; color: var(--mute); letter-spacing: .14em; font-size: 10px;
+    list-style: none; display: flex; gap: 8px; align-items: baseline;
+  }
+  .panel summary::-webkit-details-marker { display: none; }
+  .panel summary::before { content: "+"; }
+  .panel[open] summary::before { content: "−"; }
+  .panel summary:focus-visible { outline: 1px dotted var(--ink); outline-offset: 3px; }
+  .grid {
+    margin-top: 16px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px 28px;
+  }
+  .ctl { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; min-width: 0; }
+  .ctl label { color: var(--ink); }
+  .ctl output { color: var(--mute); font-variant-numeric: tabular-nums; }
+  .ctl input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--ink); margin: 0; }
+  .ctl select { grid-column: 1 / -1; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); padding: 4px 6px; }
+  .row { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .row label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+  .row input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
+  .btn {
+    font: inherit; color: var(--ink); background: transparent;
+    border: 1px solid var(--hair); padding: 5px 10px; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--ink); }
+  .btn:focus-visible { outline: 1px dotted var(--ink); outline-offset: 2px; }
+  .hint { color: var(--mute); }
+</style>
+
+<div class="stage" id="stage">
+  <div class="frame" id="frame" data-accent="edge">
+    <nav class="menu" aria-label="Menu">
+      <p class="menu-label">MENU</p>
+      <a class="link" href="#work">Work</a>
+      <a class="link" href="#about">About</a>
+      <a class="link" href="#playground">Playground</a>
+      <a class="link" href="#archive">Archive</a>
+    </nav>
+    <p class="caption">attract → destabilize → release</p>
+    <canvas class="trail" id="trail" aria-hidden="true"></canvas>
+  </div>
+</div>
+
+<details class="panel" id="panel">
+  <summary>TUNING</summary>
+  <div class="grid" id="grid"></div>
+  <div class="row">
+    <label for="guides"><input type="checkbox" id="guides"> show guides</label>
+    <button class="btn" id="reset" type="button">reset values</button>
+    <button class="btn" id="copy" type="button">copy values</button>
+    <span class="hint" id="copyNote" aria-live="polite"></span>
+  </div>
+</details>
+
+<script>
+(() => {
+  const W = 700, H = 450;
+  const DEF = {
+    radius: 90,      // px, detection distance from the word's box
+    pull: 3,         // px, max displacement of a letter
+    variance: 0.5,   // 0..1, how differently letters respond
+    stiffness: 170,  // spring k
+    damping: 22,     // spring c (ζ ≈ 0.84 at defaults: settles without a visible bounce)
+    frag: 190,       // ms, total fragmentation time
+    threshold: 1.2,  // px/ms, pointer speed before fragments release
+    maxFrags: 5,     // hard cap on fragments alive at once
+    accent: "edge",
+  };
+  const P = { ...DEF };
+  const GLYPHS = ["△", "□", "▪", "·", "+", "*", "/"];
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const stage = document.getElementById("stage");
+  const frame = document.getElementById("frame");
+  const canvas = document.getElementById("trail");
+  const ctx = canvas.getContext("2d");
+  let scale = 1, frameRect = frame.getBoundingClientRect(), guides = false;
+
+  // ---------- words → letters ----------
+  const words = [...frame.querySelectorAll(".link")].map((el) => {
+    const text = el.textContent;
+    el.textContent = "";
+    el.setAttribute("aria-label", text);
+    el.addEventListener("click", (e) => e.preventDefault());
+    const chars = [...text].map((ch) => {
+      const s = document.createElement("span");
+      s.className = "ch";
+      s.textContent = ch;
+      s.setAttribute("aria-hidden", "true");
+      el.appendChild(s);
+      return {
+        el: s, x: 0, y: 0, vx: 0, vy: 0, cx: 0, cy: 0, drawn: "",
+        u1: Math.random() * 2 - 1, // strength offset
+        u2: Math.random() * 2 - 1, // direction skew
+        u3: Math.random() * 2 - 1, // stiffness offset (phase lag)
+      };
+    });
+    const w = { el, chars, box: { x: 0, y: 0, w: 0, h: 0 }, inside: false, lastFrag: -1e4, timers: [] };
+    el.addEventListener("focus", () => fragment(w));
+    return w;
+  });
+
+  function measure() {
+    frameRect = frame.getBoundingClientRect();
+    for (const w of words) {
+      const r = w.el.getBoundingClientRect();
+      const b = w.box;
+      b.x = (r.left - frameRect.left) / scale;
+      b.y = (r.top - frameRect.top) / scale;
+      b.w = r.width / scale;
+      b.h = r.height / scale;
+      for (const c of w.chars) {
+        c.cx = b.x + c.el.offsetLeft + c.el.offsetWidth / 2;
+        c.cy = b.y + c.el.offsetTop + c.el.offsetHeight / 2;
+      }
+    }
+  }
+
+  function fit() {
+    const avail = stage.parentElement.clientWidth - 32;
+    scale = Math.min(1, avail / W);
+    frame.style.transform = scale < 1 ? `scale(${scale})` : "";
+    stage.style.width = W * scale + "px";
+    stage.style.height = H * scale + "px";
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = Math.round(W * dpr * scale);
+    canvas.height = Math.round(H * dpr * scale);
+    ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+    measure();
+  }
+
+  // ---------- pointer ----------
+  const ptr = { x: -999, y: -999, t: 0, in: false };
+  const vel = { x: 0, y: 0 };
+  let speed = 0, lastMove = 0, travel = 0, wasFast = false;
+
+  function toLocal(e) {
+    return [(e.clientX - frameRect.left) / scale, (e.clientY - frameRect.top) / scale];
+  }
+
+  frame.addEventListener("pointermove", (e) => {
+    const [x, y] = toLocal(e);
+    const t = e.timeStamp || performance.now();
+    if (ptr.in) {
+      const dt = Math.max(4, t - ptr.t);
+      vel.x += ((x - ptr.x) / dt - vel.x) * 0.4;
+      vel.y += ((y - ptr.y) / dt - vel.y) * 0.4;
+      speed = Math.hypot(vel.x, vel.y);
+      emit(ptr.x, ptr.y, x, y);
+    }
+    ptr.x = x; ptr.y = y; ptr.t = t; ptr.in = true;
+    lastMove = performance.now();
+    checkHover();
+    kick();
+  });
+  const leave = () => {
+    ptr.in = false; speed = 0; vel.x = vel.y = 0; travel = 0; wasFast = false;
+    for (const w of words) w.inside = false;
+    kick();
+  };
+  frame.addEventListener("pointerleave", leave);
+  frame.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") leave(); });
+  frame.addEventListener("pointercancel", leave);
+
+  // ---------- 2. micro-fragmentation ----------
+  function checkHover() {
+    const now = performance.now();
+    for (const w of words) {
+      const b = w.box, pad = w.inside ? 4 : 0; // small hysteresis so edges don't re-trigger
+      const inside = ptr.in &&
+        ptr.x >= b.x - pad && ptr.x <= b.x + b.w + pad &&
+        ptr.y >= b.y + b.h * 0.12 - pad && ptr.y <= b.y + b.h * 0.92 + pad;
+      if (inside && !w.inside) {
+        w.inside = true;
+        if (now - w.lastFrag > 350) fragment(w);
+      } else if (!inside && w.inside) {
+        w.inside = false;
+      }
+    }
+  }
+
+  function fragment(w) {
+    w.lastFrag = performance.now();
+    w.timers.forEach(clearTimeout);
+    w.timers = [];
+    for (const c of w.chars) c.el.classList.remove("g");
+
+    const pool = w.chars.map((_, i) => i);
+    const count = Math.min(pool.length, Math.random() < 0.55 ? 2 : 1);
+    const picks = [];
+    while (picks.length < count) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    const glyphs = [...GLYPHS].sort(() => Math.random() - 0.5);
+
+    const D = P.frag;
+    // first letter breaks immediately, second follows; both are back by D
+    const plan = count === 2
+      ? [[picks[0], 0, D * 0.7], [picks[1], D * 0.3, D]]
+      : [[picks[0], 0, D]];
+    plan.forEach(([i, on, off], k) => {
+      const el = w.chars[i].el;
+      w.timers.push(setTimeout(() => {
+        el.dataset.g = glyphs[k];
+        el.style.setProperty("--jx", (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.8) + "px");
+        el.classList.add("g");
+      }, on));
+      w.timers.push(setTimeout(() => el.classList.remove("g"), off));
+    });
+  }
+
+  // ---------- 3. directional trail ----------
+  const parts = [];
+  const SHAPES = ["sq", "sq", "dash", "dash", "dot", "plus"];
+
+  function emit(x0, y0, x1, y1) {
+    if (reduced || speed < P.threshold) { wasFast = false; travel = 0; return; }
+    const spacing = 16 + speed * 9;              // faster = fragments spread over a longer trail
+    if (!wasFast) { wasFast = true; travel = spacing * 0.6; }
+    const seg = Math.hypot(x1 - x0, y1 - y0);
+    if (!seg) return;
+    let pos = spacing - travel;
+    while (pos <= seg) {
+      spawn(x0 + (x1 - x0) * pos / seg, y0 + (y1 - y0) * pos / seg);
+      pos += spacing;
+    }
+    travel = seg - (pos - spacing);
+  }
+
+  function spawn(x, y) {
+    if (parts.length >= P.maxFrags) return;      // never accumulate
+    const s = Math.min(1, (speed - P.threshold) / 2.5);
+    const ang = Math.atan2(vel.y, vel.x);
+    const perp = (Math.random() - 0.5) * 5;
+    const back = 5 + speed * 4;                  // drift opposite to motion
+    parts.push({
+      x: x - Math.sin(ang) * perp,
+      y: y + Math.cos(ang) * perp,
+      dx: -Math.cos(ang) * back + (Math.random() - 0.5) * 3,
+      dy: -Math.sin(ang) * back + (Math.random() - 0.5) * 3,
+      ang,
+      stretch: 1 + 1.7 * s + Math.random() * 0.3,
+      life: 250 + 150 * s,
+      born: performance.now(),
+      shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+    });
+  }
+
+  const LIME = getComputedStyle(document.documentElement).getPropertyValue("--lime").trim();
+  const EDGE = getComputedStyle(document.documentElement).getPropertyValue("--lime-edge").trim();
+
+  function drawPart(p, t) {
+    const e = 1 - Math.pow(1 - t, 3);          // ease-out drift
+    const x = p.x + p.dx * e, y = p.y + p.dy * e;
+    const st = p.stretch * (1 - 0.4 * t);       // stretch relaxes as it fades
+    ctx.save();
+    ctx.globalAlpha = Math.pow(1 - t, 1.5);
+    ctx.translate(x, y);
+    ctx.rotate(p.ang);
+    ctx.beginPath();
+    if (p.shape === "sq") ctx.rect(-1.6 * st, -1.6, 3.2 * st, 3.2);
+    else if (p.shape === "dash") ctx.rect(-3.5 * st, -0.8, 7 * st, 1.6);
+    else if (p.shape === "dot") ctx.ellipse(0, 0, 1.7 * st, 1.7, 0, 0, Math.PI * 2);
+    else { ctx.rect(-3 * st, -0.7, 6 * st, 1.4); ctx.rect(-0.7, -3, 1.4, 6); }
+    ctx.fillStyle = LIME;
+    ctx.fill();
+    if (P.accent !== "spec") { ctx.lineWidth = 0.6; ctx.strokeStyle = EDGE; ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // ---------- 1. magnetic type (springs) ----------
+  function stepChars(dt) {
+    let moving = false;
+    const R = P.radius, v = P.variance;
+    for (const w of words) {
+      const b = w.box;
+      let s = 0;
+      if (ptr.in && !reduced) {
+        const ddx = Math.max(b.x - ptr.x, 0, ptr.x - (b.x + b.w));
+        const ddy = Math.max(b.y - ptr.y, 0, ptr.y - (b.y + b.h));
+        s = Math.max(0, 1 - Math.hypot(ddx, ddy) / R);
+        s = s * s * (3 - 2 * s);                 // smoothstep: closer = stronger, soft onset
+      }
+      for (const c of w.chars) {
+        let tx = 0, ty = 0;
+        if (s > 0) {
+          const ox = ptr.x - c.cx, oy = ptr.y - c.cy;
+          const d = Math.hypot(ox, oy) || 1e-3;
+          const near = 1 - Math.exp(-d / 16);    // letter under the cursor stays calm
+          const local = 0.45 + 0.55 * Math.max(0, 1 - d / (R * 1.6));
+          const mag = P.pull * s * local * near * (1 + c.u1 * v * 0.6);
+          const a = c.u2 * v * 0.35;
+          const ux = ox / d, uy = oy / d;
+          tx = (ux * Math.cos(a) - uy * Math.sin(a)) * mag;
+          ty = (ux * Math.sin(a) + uy * Math.cos(a)) * mag * 0.85;
+        }
+        const kf = 1 + c.u3 * v * 0.3;
+        const k = P.stiffness * kf, damp = P.damping * Math.sqrt(kf);
+        const h = dt / 2;
+        for (let i = 0; i < 2; i++) {            // two semi-implicit Euler substeps
+          c.vx += (k * (tx - c.x) - damp * c.vx) * h;
+          c.vy += (k * (ty - c.y) - damp * c.vy) * h;
+          c.x += c.vx * h;
+          c.y += c.vy * h;
+        }
+        if (Math.abs(c.x - tx) < 0.004 && Math.abs(c.y - ty) < 0.004 && Math.abs(c.vx) < 0.01 && Math.abs(c.vy) < 0.01) {
+          c.x = tx; c.y = ty; c.vx = c.vy = 0;
+        } else moving = true;
+        const tf = (Math.abs(c.x) < 0.01 && Math.abs(c.y) < 0.01) ? "" : `translate(${c.x.toFixed(2)}px,${c.y.toFixed(2)}px)`;
+        if (tf !== c.drawn) { c.el.style.transform = tf; c.drawn = tf; }
+      }
+    }
+    return moving;
+  }
+
+  // ---------- guides (tuning aid) ----------
+  function drawGuides() {
+    ctx.save();
+    ctx.strokeStyle = "rgba(51,51,51,.18)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    for (const w of words) {
+      const b = w.box, R = P.radius;
+      ctx.beginPath();
+      ctx.roundRect(b.x - R, b.y - R, b.w + R * 2, b.h + R * 2, R);
+      ctx.stroke();
+      ctx.strokeRect(b.x, b.y + b.h * 0.12, b.w, b.h * 0.8);
+    }
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#A19D93";
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    const fast = speed >= P.threshold;
+    ctx.fillText(`v ${speed.toFixed(2)} px/ms ${fast ? "▲ release" : ""}`, 28, 28);
+    ctx.fillText(`fragments ${parts.length}/${P.maxFrags}`, 28, 42);
+    ctx.restore();
+  }
+
+  // ---------- loop: sleeps when nothing is happening ----------
+  let running = false, last = 0, dirty = false;
+  function kick() {
+    if (running) return;
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(loop);
+  }
+  function loop(now) {
+    const dt = Math.min(0.033, Math.max(0.001, (now - last) / 1000));
+    last = now;
+    if (now - lastMove > 40) { vel.x *= 0.8; vel.y *= 0.8; speed = Math.hypot(vel.x, vel.y); }
+
+    const moving = stepChars(dt);
+
+    for (let i = parts.length - 1; i >= 0; i--) if (now - parts[i].born >= parts[i].life) parts.splice(i, 1);
+    if (parts.length || guides || dirty) {
+      ctx.clearRect(0, 0, W, H);
+      for (const p of parts) drawPart(p, (now - p.born) / p.life);
+      if (guides) drawGuides();
+      dirty = parts.length > 0 || guides;
+    }
+
+    if (moving || parts.length || guides || dirty || speed > 0.01) requestAnimationFrame(loop);
+    else running = false;
+  }
+
+  // ---------- tuning panel ----------
+  const CTRLS = [
+    ["radius", "detection radius", 50, 150, 1, "px"],
+    ["pull", "max pull", 0, 6, 0.1, "px"],
+    ["variance", "letter variance", 0, 1, 0.05, ""],
+    ["stiffness", "spring stiffness", 60, 320, 1, ""],
+    ["damping", "spring damping", 8, 40, 0.5, ""],
+    ["frag", "fragment duration", 120, 300, 5, "ms"],
+    ["threshold", "trail speed threshold", 0.5, 3, 0.05, "px/ms"],
+    ["maxFrags", "max fragments", 3, 6, 1, ""],
+  ];
+  const grid = document.getElementById("grid");
+  const inputs = {};
+  for (const [key, label, min, max, step, unit] of CTRLS) {
+    const wrap = document.createElement("div");
+    wrap.className = "ctl";
+    wrap.innerHTML = `<label for="t-${key}">${label}</label><output id="o-${key}"></output>
+      <input type="range" id="t-${key}" min="${min}" max="${max}" step="${step}">`;
+    grid.appendChild(wrap);
+    const input = wrap.querySelector("input"), out = wrap.querySelector("output");
+    const show = () => { out.textContent = `${P[key]}${unit ? " " + unit : ""}`; };
+    input.value = P[key]; show();
+    input.addEventListener("input", () => { P[key] = parseFloat(input.value); show(); kick(); });
+    inputs[key] = [input, show];
+  }
+  const acc = document.createElement("div");
+  acc.className = "ctl";
+  acc.innerHTML = `<label for="t-accent">lime treatment</label><output></output>
+    <select id="t-accent">
+      <option value="edge">lime + faint ink edge</option>
+      <option value="spec">lime only (#DFFF9A)</option>
+      <option value="chip">ink glyph on lime chip</option>
+    </select>`;
+  grid.appendChild(acc);
+  const accSel = acc.querySelector("select");
+  accSel.value = P.accent;
+  accSel.addEventListener("change", () => { P.accent = accSel.value; frame.dataset.accent = P.accent; });
+
+  document.getElementById("guides").addEventListener("change", (e) => {
+    guides = e.target.checked; dirty = true; kick();
+  });
+  document.getElementById("reset").addEventListener("click", () => {
+    Object.assign(P, DEF);
+    for (const k in inputs) { inputs[k][0].value = P[k]; inputs[k][1](); }
+    accSel.value = P.accent; frame.dataset.accent = P.accent;
+  });
+  const note = document.getElementById("copyNote");
+  document.getElementById("copy").addEventListener("click", () => {
+    const text = JSON.stringify(P, null, 2);
+    navigator.clipboard.writeText(text)
+      .then(() => { note.textContent = "Copied"; })
+      .catch(() => { note.textContent = text.replace(/\s+/g, " "); });
+    setTimeout(() => { note.textContent = ""; }, 4000);
+  });
+
+  // ---------- boot ----------
+  fit();
+  addEventListener("resize", fit);
+  addEventListener("scroll", () => { frameRect = frame.getBoundingClientRect(); }, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+})();
+</script>
