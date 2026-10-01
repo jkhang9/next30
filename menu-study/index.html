@@ -1,18 +1,18 @@
 <title>Menu Motion Study</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..700,0..100,0..1;1,9..144,300..700,0..100,0..1&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..600,0..100,0..1&family=Geist+Mono:wght@400;500&display=swap">
 <style>
   /* Layout: fixed 700×450 frame. Mono identity column at left, serif menu column at right, both hung from one top line. */
   /* Single light look by choice: the brief fixes warm white, charcoal and lime. */
   :root {
     --paper: #F8F6F1;      /* warm white ground */
-    --ink: #333333;        /* hovered word, primary text */
-    --rest: #7A766E;       /* menu words at rest (warm grey, like the reference) */
+    --ink: #333333;        /* hovered word, ASCII glyphs */
+    --rest: #7A766E;       /* menu words at rest */
     --mute: #A6A197;       /* MENU label */
     --hair: #E6E2D9;       /* frame edge, panel rules */
-    --lime: #DFFF9A;       /* accent, only during interaction */
-    --lime-deep: #A9CF4A;  /* hairline edge that keeps lime visible on white */
+    --lime: #DFFF9A;       /* highlight band, only during interaction */
+    --lime-deep: #9DC23F;  /* trail glyphs: lime dark enough to read on white */
     --serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
     --mono: "Geist Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
     color-scheme: light;
@@ -32,7 +32,6 @@
     width: 700px; height: 450px;
     transform-origin: 0 0;
     background-color: var(--paper);
-    /* faint paper grain */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3  0 0 0 0 .28  0 0 0 0 .24  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     outline: 1px solid var(--hair);
     overflow: hidden;
@@ -60,23 +59,39 @@
     color: var(--rest);
     text-decoration: none;
     cursor: pointer;
-    will-change: transform;
   }
   .link:focus { outline: none; }
   .link:focus-visible { outline: 1px dotted var(--ink); outline-offset: 4px; }
 
-  /* letters stay plain inline spans so the word keeps its kerning */
-  .ch { transition: font-weight 200ms cubic-bezier(.2, .7, .2, 1); }
-  .ch.i { font-style: italic; font-weight: 600; }
-  .ch.m {
-    font-family: var(--mono); font-style: normal; font-weight: 500;
-    font-size: .56em; letter-spacing: 0;
-    color: var(--ink);
+  /* The word sits on its own layer so the highlight band can slide in behind it. */
+  .txt { position: relative; isolation: isolate; }
+  .txt::before {
+    content: "";
+    position: absolute; z-index: -1;
+    left: -.1em; right: -.1em; bottom: .02em; height: .42em;
     background: var(--lime);
-    box-shadow: inset 0 0 0 .5px var(--lime-deep);
-    padding: .06em .12em;
-    vertical-align: .32em;
-    transition: none;
+    transform: scaleX(0);
+    transform-origin: var(--from, left) center;
+    transition: transform 280ms cubic-bezier(.2, .7, .2, 1);
+  }
+  .link.on .txt::before { transform: scaleX(1); }
+
+  /* Letters stay plain inline spans so kerning and width never change.
+     A converted letter keeps its slot; its ASCII stand-in is drawn over it. */
+  .ch { position: relative; }
+  .ch.t, .ch.a { color: transparent; }
+  .ch.t::after, .ch.a::after {
+    content: attr(data-a);
+    position: absolute; left: 50%; top: 56%;
+    transform: translate(-50%, -50%) translate(var(--px, 0px), var(--py, 0px)) rotate(var(--r, 0rad));
+    font-family: var(--mono); font-size: .62em; font-weight: 500; font-style: normal;
+    letter-spacing: 0; line-height: 1;
+    color: var(--ink);
+  }
+  .ch.t::after { opacity: .7; }  /* first stage: the same letter, in mono */
+
+  @media (prefers-reduced-motion: reduce) {
+    .txt::before { transition: none; }
   }
 
   /* Tuning panel, outside the frame */
@@ -105,8 +120,8 @@
 <div class="stage" id="stage">
   <div class="frame" id="frame">
     <div class="id">
-      <p class="mono">+ Motion study 02</p>
-      <p class="mono">Attract &amp;<br>destabilize &amp;<br>release</p>
+      <p class="mono">+ Janice Khang</p>
+      <p class="mono">Motion study 03<br>Attract &amp;<br>decode &amp;<br>release</p>
     </div>
     <nav class="menu" id="menu" aria-label="Menu">
       <p class="mono">Menu</p>
@@ -134,15 +149,25 @@
 (() => {
   const W = 700, H = 450;
   const DEF = {
-    radius: 90,     // px from the word's box where attraction begins
-    pull: 4,        // px, max horizontal travel of a word (vertical is 60% of this)
-    stagger: 16,    // ms between letters as the italic wave spreads from the cursor
-    glitch: 110,    // ms a letter spends as its mono twin
+    reach: 46,      // px around the cursor where letters turn to ASCII (about 2–3 letters)
+    decay: 300,     // ms, shortest fade back to serif (each letter adds up to +500 ms)
+    radius: 90,     // px from the word's box where the word starts to lean and warm
+    pull: 3,        // px, max lean of the whole word
     threshold: 1.2, // px/ms before the cursor sheds fragments
-    maxFrags: 5,    // fragments alive at once, never more
+    maxFrags: 5,    // fragments alive at once
   };
   const P = { ...DEF };
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  let reduced = motion.matches;
+  motion.addEventListener("change", (e) => { reduced = e.matches; kick(); });
+
+  // ASCII stand-ins. Letters without a good look-alike fall back to density marks.
+  const ASCII = {
+    W: "#", o: "0", r: "/", k: "<", A: "4", b: "6", u: "v", t: "+",
+    P: "?", l: "|", a: "@", y: "7", g: "9", n: "^", d: ")",
+    c: "(", h: "#", i: "!", v: "v", e: "3",
+  };
+  const DENSITY = [".", ":", "+", "*"];
 
   const stage = document.getElementById("stage");
   const frame = document.getElementById("frame");
@@ -153,45 +178,56 @@
   const tok = (n) => css.getPropertyValue(n).trim();
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const REST = hex(tok("--rest")), INK = hex(tok("--ink"));
-  const LIME = tok("--lime"), LIME_DEEP = tok("--lime-deep");
+  const TRAIL = tok("--lime-deep");
+  const hash = (n) => { const a = Math.sin(n * 127.1 + 311.7) * 43758.5453; return a - Math.floor(a); };
 
   let scale = 1, frameRect = frame.getBoundingClientRect(), guides = false;
 
-  // ---------- words ----------
+  // ---------- words → letters ----------
+  let uid = 0;
   const words = [...menu.querySelectorAll(".link")].map((el) => {
     const text = el.textContent;
     el.textContent = "";
     el.setAttribute("aria-label", text);
+    const txt = document.createElement("span");
+    txt.className = "txt";
+    txt.setAttribute("aria-hidden", "true");
+    el.appendChild(txt);
     const chars = [...text].map((ch) => {
       const s = document.createElement("span");
       s.className = "ch";
       s.textContent = ch;
-      s.setAttribute("aria-hidden", "true");
-      el.appendChild(s);
-      return { el: s, cx: 0 };
+      txt.appendChild(s);
+      const seed = hash(++uid * 9.13);
+      return {
+        el: s, ch, seed, cx: 0, cy: 0,
+        e: 0, stage: 0, entered: -1e4, drawn: "", vars: "",
+        decay: 1 + seed * (500 / 300),                // scaled by P.decay at runtime
+      };
     });
     const w = {
       el, chars, box: { x: 0, y: 0, w: 0, h: 0 },
-      x: 0, y: 0, vx: 0, vy: 0, heat: 0, drawn: "", color: "",
-      hover: false, timers: [],
+      x: 0, y: 0, vx: 0, vy: 0, heat: 0, tf: "", color: "", hover: false,
     };
     el.addEventListener("click", (e) => e.preventDefault());
-    el.addEventListener("focus", () => { if (!w.hover) enter(w, null); });
-    el.addEventListener("blur", () => { if (w.hover && !pointerInside(w)) leave(w); });
+    el.addEventListener("focus", () => setHover(w, true, null));
+    el.addEventListener("blur", () => { if (!inside(w, 0)) setHover(w, false, null); });
     return w;
   });
 
-  // Layout positions from offsets, so the word's own transform and italic state never skew the hit box.
+  // Layout positions come from offsets, so the word's own transform never skews the hit box.
   function measure() {
     frameRect = frame.getBoundingClientRect();
     for (const w of words) {
-      if (w.hover) continue;
       const b = w.box;
       b.x = menu.offsetLeft + w.el.offsetLeft;
       b.y = menu.offsetTop + w.el.offsetTop;
       b.w = w.el.offsetWidth;
       b.h = w.el.offsetHeight;
-      for (const c of w.chars) c.cx = b.x + c.el.offsetLeft + c.el.offsetWidth / 2;
+      for (const c of w.chars) {
+        c.cx = b.x + c.el.offsetLeft + c.el.offsetWidth / 2;
+        c.cy = b.y + b.h * 0.56;                       // optical middle of the lowercase
+      }
     }
   }
 
@@ -205,6 +241,7 @@
     canvas.height = Math.round(H * dpr * scale);
     ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
     measure();
+    kick();
   }
 
   // ---------- pointer ----------
@@ -224,80 +261,43 @@
     }
     ptr.x = x; ptr.y = y; ptr.t = t; ptr.in = true;
     lastMove = performance.now();
-    checkHover();
+    for (const w of words) {
+      const hit = inside(w, w.hover ? 6 : 0);          // a little hysteresis at the edges
+      if (hit !== w.hover && document.activeElement !== w.el) setHover(w, hit, x);
+    }
     kick();
   });
   const out = () => {
     ptr.in = false; speed = 0; vel.x = vel.y = 0; travel = 0; wasFast = false;
-    for (const w of words) if (w.hover && document.activeElement !== w.el) leave(w);
+    for (const w of words) if (w.hover && document.activeElement !== w.el) setHover(w, false, null);
     kick();
   };
   frame.addEventListener("pointerleave", out);
   frame.addEventListener("pointercancel", out);
   frame.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") out(); });
 
-  function pointerInside(w, pad = 0) {
+  function inside(w, pad) {
     const b = w.box;
     return ptr.in &&
       ptr.x >= b.x - pad && ptr.x <= b.x + b.w + pad &&
-      ptr.y >= b.y + b.h * 0.18 - pad && ptr.y <= b.y + b.h * 0.86 + pad;
+      ptr.y >= b.y + b.h * 0.14 - pad && ptr.y <= b.y + b.h * 0.9 + pad;
   }
 
-  function checkHover() {
-    for (const w of words) {
-      const inside = pointerInside(w, w.hover ? 6 : 0); // hysteresis so edges don't flicker
-      if (inside && !w.hover) enter(w, ptr.x);
-      else if (!inside && w.hover && document.activeElement !== w.el) leave(w);
-    }
+  // The highlight belongs to the whole item. It wipes in from the side the cursor came from
+  // and wipes out toward the side it leaves by.
+  function setHover(w, on, x) {
+    w.hover = on;
+    const mid = w.box.x + w.box.w / 2;
+    const side = x == null ? "left" : x < mid ? "left" : "right";
+    w.el.style.setProperty("--from", side);
+    w.el.classList.toggle("on", on);
   }
 
-  // ---------- DESTABILIZE: italic wave from the entry point, 1–2 letters flash as their mono twin ----------
-  function later(w, ms, fn) { w.timers.push(setTimeout(fn, ms)); }
-  function clear(w) { w.timers.forEach(clearTimeout); w.timers = []; }
-
-  function enter(w, fromX) {
-    w.hover = true;
-    clear(w);
-    const n = w.chars.length;
-    if (reduced) { w.chars.forEach((c) => (c.el.className = "ch i")); return; }
-
-    let o = 0;                                        // letter nearest the cursor starts the wave
-    if (fromX != null) {
-      let best = Infinity;
-      w.chars.forEach((c, i) => { const d = Math.abs(c.cx - fromX); if (d < best) { best = d; o = i; } });
-    }
-    const flash = new Set([o]);
-    if (n > 3 && Math.random() < 0.5) {
-      const far = w.chars.map((_, i) => i).filter((i) => Math.abs(i - o) >= 2);
-      flash.add(far[Math.floor(Math.random() * far.length)]);
-    }
-    w.chars.forEach((c, i) => {
-      const at = Math.abs(i - o) * P.stagger;
-      if (flash.has(i)) {
-        later(w, at, () => (c.el.className = "ch m"));
-        later(w, at + P.glitch, () => (c.el.className = "ch i"));
-      } else {
-        later(w, at, () => (c.el.className = "ch i"));
-      }
-    });
-  }
-
-  function leave(w) {
-    w.hover = false;
-    clear(w);
-    if (reduced) { w.chars.forEach((c) => (c.el.className = "ch")); return; }
-    // settle back quietly, right to left, no glitch on the way out
-    const n = w.chars.length;
-    w.chars.forEach((c, i) => later(w, (n - 1 - i) * P.stagger * 0.5, () => (c.el.className = "ch")));
-  }
-
-  // ---------- RELEASE: velocity-gated fragments ----------
+  // ---------- RELEASE: velocity-gated ASCII fragments ----------
   const parts = [];
-  const SHAPES = ["sq", "sq", "dash", "dash", "dot", "plus"];
-
   function emit(x0, y0, x1, y1) {
     if (reduced || speed < P.threshold) { wasFast = false; travel = 0; return; }
-    const spacing = 16 + speed * 9;                  // faster = a longer, sparser trail
+    const spacing = 16 + speed * 9;
     if (!wasFast) { wasFast = true; travel = spacing * 0.6; }
     const seg = Math.hypot(x1 - x0, y1 - y0);
     if (!seg) return;
@@ -308,44 +308,98 @@
     }
     travel = seg - (pos - spacing);
   }
-
   function spawn(x, y) {
     if (parts.length >= P.maxFrags) return;
     const s = Math.min(1, (speed - P.threshold) / 2.5);
     const ang = Math.atan2(vel.y, vel.x);
-    const perp = (Math.random() - 0.5) * 5;
+    const perp = (Math.random() - 0.5) * 6;
     const back = 5 + speed * 4;
     parts.push({
       x: x - Math.sin(ang) * perp, y: y + Math.cos(ang) * perp,
       dx: -Math.cos(ang) * back + (Math.random() - 0.5) * 3,
       dy: -Math.sin(ang) * back + (Math.random() - 0.5) * 3,
-      ang, stretch: 1 + 1.7 * s + Math.random() * 0.3,
+      ang, stretch: 1 + 1.2 * s + Math.random() * 0.2,
       life: 250 + 150 * s, born: performance.now(),
-      shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+      ch: ["+", "*", ":", "·", "/", "+"][Math.floor(Math.random() * 6)],
     });
   }
-
   function drawPart(p, t) {
     const e = 1 - Math.pow(1 - t, 3);
-    const st = p.stretch * (1 - 0.4 * t);
     ctx.save();
     ctx.globalAlpha = Math.pow(1 - t, 1.5);
     ctx.translate(p.x + p.dx * e, p.y + p.dy * e);
     ctx.rotate(p.ang);
-    ctx.beginPath();
-    if (p.shape === "sq") ctx.rect(-1.6 * st, -1.6, 3.2 * st, 3.2);
-    else if (p.shape === "dash") ctx.rect(-3.5 * st, -0.8, 7 * st, 1.6);
-    else if (p.shape === "dot") ctx.ellipse(0, 0, 1.7 * st, 1.7, 0, 0, Math.PI * 2);
-    else { ctx.rect(-3 * st, -0.7, 6 * st, 1.4); ctx.rect(-0.7, -3, 1.4, 6); }
-    ctx.fillStyle = LIME; ctx.fill();
-    ctx.lineWidth = 0.6; ctx.strokeStyle = LIME_DEEP; ctx.stroke();
+    ctx.scale(p.stretch * (1 - 0.4 * t), 1);           // stretched along the direction of travel
+    ctx.fillStyle = TRAIL;
+    ctx.fillText(p.ch, 0, 0);
     ctx.restore();
   }
 
-  // ---------- ATTRACT: the whole word leans toward the cursor and warms from grey to ink ----------
+  // ---------- per-letter energy: fast in, slow out (as in the hero) ----------
+  function tilt(age, seed, strength) {
+    if (reduced || age < 0 || age > 650) return 0;
+    return Math.sin(age / 85) * Math.exp(-age / 190) * (seed > 0.5 ? 1 : -1) * 0.3 * strength;
+  }
+
+  function glyphFor(c, stage, age) {
+    if (stage === 1) return c.ch;                      // the same letter, in mono
+    const target = ASCII[c.ch] || DENSITY[2 + Math.floor(c.seed * 2)];
+    if (reduced || age > 110) return target;
+    return DENSITY[Math.min(3, Math.floor(age / 28))]; // a quick decode on the way in
+  }
+
+  function stepLetters(now, dt) {
+    let busy = false;
+    for (const w of words) {
+      for (const c of w.chars) {
+        const x = c.cx + w.x, y = c.cy + w.y;
+        const d = ptr.in ? Math.hypot(ptr.x - x, ptr.y - y) : Infinity;
+        const edge = P.reach * (0.91 + c.seed * 0.14);
+        const prox = Math.max(0, 1 - d / edge);
+        const target = prox * prox;
+        c.e = target > c.e
+          ? c.e + (target - c.e) * Math.min(1, dt / 40)
+          : Math.max(target, c.e - dt / (P.decay * c.decay));
+        if (Math.abs(c.e - target) > 0.003) busy = true;
+
+        const stage = c.ch === " " ? 0 : c.e > 0.42 ? 2 : c.e > 0.12 ? 1 : 0;
+        if (stage > c.stage) c.entered = now;
+        c.stage = stage;
+        const age = now - c.entered;
+
+        let cls = "ch", glyph = "", vars = "";
+        if (stage) {
+          glyph = glyphFor(c, stage, age);
+          cls = stage === 1 ? "ch t" : "ch a";
+          const r = tilt(age, c.seed, Math.min(1, c.e * 3));
+          const force = reduced ? 0 : Math.sin(c.e * Math.PI) * 1.6;  // a slight push away, as the dots do
+          const px = isFinite(d) && d ? ((x - ptr.x) / d) * force : 0;
+          const py = isFinite(d) && d ? ((y - ptr.y) / d) * force : 0;
+          vars = `${r.toFixed(3)}|${px.toFixed(2)}|${py.toFixed(2)}`;
+          if (!reduced && age < 650) busy = true;
+        }
+        const drawn = cls + glyph;
+        if (drawn !== c.drawn) {
+          c.el.className = cls;
+          if (glyph) c.el.dataset.a = glyph; else delete c.el.dataset.a;
+          c.drawn = drawn;
+        }
+        if (vars !== c.vars) {
+          const [r, px, py] = vars ? vars.split("|") : ["0", "0", "0"];
+          c.el.style.setProperty("--r", r + "rad");
+          c.el.style.setProperty("--px", px + "px");
+          c.el.style.setProperty("--py", py + "px");
+          c.vars = vars;
+        }
+      }
+    }
+    return busy;
+  }
+
+  // ---------- word: leans toward the cursor and warms from grey to ink ----------
   const K = 170, C = 22; // spring: ζ ≈ 0.84, settles without a visible bounce
   function stepWords(dt) {
-    let moving = false;
+    let busy = false;
     for (const w of words) {
       const b = w.box;
       let s = 0, tx = 0, ty = 0;
@@ -353,34 +407,31 @@
         const ddx = Math.max(b.x - ptr.x, 0, ptr.x - (b.x + b.w));
         const ddy = Math.max(b.y - ptr.y, 0, ptr.y - (b.y + b.h));
         s = Math.max(0, 1 - Math.hypot(ddx, ddy) / P.radius);
-        s = s * s * (3 - 2 * s);                     // closer = stronger, with a soft onset
+        s = s * s * (3 - 2 * s);
         if (!reduced) {
           const ox = ptr.x - (b.x + b.w / 2), oy = ptr.y - (b.y + b.h / 2);
           tx = Math.max(-1, Math.min(1, ox / (b.w / 2 + P.radius * 0.5))) * P.pull * s;
           ty = Math.max(-1, Math.min(1, oy / (b.h / 2 + P.radius * 0.5))) * P.pull * 0.6 * s;
         }
       }
-      // before the cursor arrives the word only warms partway, so neighbours never compete with the hovered one
-      s = w.hover ? 1 : s * 0.4;
-
-      const h = dt / 2;
+      const heat = w.hover ? 1 : s * 0.4;              // neighbours warm only partway
+      const h = dt / 2000;
       for (let i = 0; i < 2; i++) {
         w.vx += (K * (tx - w.x) - C * w.vx) * h;
         w.vy += (K * (ty - w.y) - C * w.vy) * h;
         w.x += w.vx * h; w.y += w.vy * h;
       }
-      w.heat += (s - w.heat) * Math.min(1, dt * 14); // colour eases rather than snapping
-
+      w.heat += (heat - w.heat) * Math.min(1, dt / 70);
       const settled = Math.abs(w.x - tx) < 0.004 && Math.abs(w.y - ty) < 0.004 &&
-        Math.abs(w.vx) < 0.01 && Math.abs(w.vy) < 0.01 && Math.abs(w.heat - s) < 0.002;
-      if (settled) { w.x = tx; w.y = ty; w.vx = w.vy = 0; w.heat = s; } else moving = true;
+        Math.abs(w.vx) < 0.01 && Math.abs(w.vy) < 0.01 && Math.abs(w.heat - heat) < 0.002;
+      if (settled) { w.x = tx; w.y = ty; w.vx = w.vy = 0; w.heat = heat; } else busy = true;
 
       const tf = Math.abs(w.x) < 0.01 && Math.abs(w.y) < 0.01 ? "" : `translate(${w.x.toFixed(2)}px,${w.y.toFixed(2)}px)`;
-      if (tf !== w.drawn) { w.el.style.transform = tf; w.drawn = tf; }
+      if (tf !== w.tf) { w.el.style.transform = tf; w.tf = tf; }
       const col = w.heat < 0.002 ? "" : `rgb(${REST.map((r, i) => Math.round(r + (INK[i] - r) * w.heat)).join(",")})`;
       if (col !== w.color) { w.el.style.color = col; w.color = col; }
     }
-    return moving;
+    return busy;
   }
 
   // ---------- guides ----------
@@ -393,45 +444,46 @@
       ctx.beginPath();
       ctx.roundRect(b.x - R, b.y - R, b.w + R * 2, b.h + R * 2, R);
       ctx.stroke();
-      ctx.strokeRect(b.x, b.y + b.h * 0.18, b.w, b.h * 0.68);
     }
+    if (ptr.in) { ctx.beginPath(); ctx.arc(ptr.x, ptr.y, P.reach, 0, Math.PI * 2); ctx.stroke(); }
     ctx.setLineDash([]);
     ctx.fillStyle = tok("--mute");
-    ctx.font = "10px 'Geist Mono', monospace";
+    ctx.textAlign = "left";
     ctx.fillText(`v ${speed.toFixed(2)} px/ms ${speed >= P.threshold ? "· release" : ""}`, 44, 420);
     ctx.fillText(`fragments ${parts.length}/${P.maxFrags}`, 44, 434);
     ctx.restore();
   }
 
-  // ---------- loop: sleeps whenever nothing is moving ----------
-  let running = false, last = 0, dirty = false;
-  function kick() {
-    if (running) return;
-    running = true; last = performance.now();
-    requestAnimationFrame(loop);
-  }
+  // ---------- loop: sleeps whenever nothing is changing ----------
+  let raf = 0, last = 0, dirty = false;
+  function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } }
   function loop(now) {
-    const dt = Math.min(0.033, Math.max(0.001, (now - last) / 1000));
+    raf = 0;
+    const dt = Math.min(40, Math.max(1, now - last));
     last = now;
     if (now - lastMove > 40) { vel.x *= 0.8; vel.y *= 0.8; speed = Math.hypot(vel.x, vel.y); }
-    const moving = stepWords(dt);
+
+    let busy = stepWords(dt);
+    busy = stepLetters(now, dt) || busy;
+
     for (let i = parts.length - 1; i >= 0; i--) if (now - parts[i].born >= parts[i].life) parts.splice(i, 1);
     if (parts.length || guides || dirty) {
       ctx.clearRect(0, 0, W, H);
+      ctx.font = "500 11px 'Geist Mono', ui-monospace, monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
       for (const p of parts) drawPart(p, (now - p.born) / p.life);
       if (guides) drawGuides();
       dirty = parts.length > 0 || guides;
     }
-    if (moving || parts.length || guides || dirty || speed > 0.01) requestAnimationFrame(loop);
-    else running = false;
+    if (busy || parts.length || guides || dirty || speed > 0.01) raf = requestAnimationFrame(loop);
   }
 
   // ---------- tuning panel ----------
   const CTRLS = [
-    ["radius", "attraction radius", 40, 160, 1, "px"],
-    ["pull", "max pull", 0, 8, 0.5, "px"],
-    ["stagger", "italic wave stagger", 0, 40, 1, "ms"],
-    ["glitch", "mono flash length", 40, 220, 5, "ms"],
+    ["reach", "ASCII reach", 20, 90, 1, "px"],
+    ["decay", "ASCII fade-out", 100, 800, 10, "ms"],
+    ["radius", "word attraction radius", 40, 160, 1, "px"],
+    ["pull", "word lean", 0, 8, 0.5, "px"],
     ["threshold", "trail speed threshold", 0.5, 3, 0.05, "px/ms"],
     ["maxFrags", "max fragments", 3, 6, 1, ""],
   ];
@@ -468,6 +520,7 @@
   fit();
   addEventListener("resize", fit);
   addEventListener("scroll", () => { frameRect = frame.getBoundingClientRect(); }, { passive: true });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) out(); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
 })();
 </script>
